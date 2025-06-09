@@ -1,26 +1,22 @@
-# Kubernetes + Keeper Secrets Manager Installer - Technical Documentation
+# Kubernetes + Keeper Secrets Manager Suite
 
-## Overview
+A comprehensive DevOps automation suite for Kubernetes development with integrated Keeper Secrets Manager support. This suite provides production-ready tools for cluster management, secrets automation, deployment orchestration, and security compliance.
 
-The Kubernetes + Keeper Installer (`install-k8s-keeper.py`) is a comprehensive, multi-stage Python script that automates the installation and configuration of a complete Kubernetes development environment with Keeper Secrets Manager integration. The script provides intelligent port management, robust error handling, state persistence, and comprehensive diagnostics.
-
----
-
-## Quick Start & Usage Instructions
+## 🚀 Quick Start & Usage Instructions
 
 ### Installation
 ```bash
 # Basic installation (recommended for most users)
-python install-k8s-keeper.py --allow-root
+python scripts/install-k8s-keeper.py --allow-root
 
 # Production-only installation (no development tools)
-python install-k8s-keeper.py --allow-root --production-only
+python scripts/install-k8s-keeper.py --allow-root --production-only
 
 # Development-only installation (no External Secrets/Keeper)
-python install-k8s-keeper.py --allow-root --dev-only
+python scripts/install-k8s-keeper.py --allow-root --dev-only
 
 # Custom port configuration
-python install-k8s-keeper.py --allow-root --interactive-ports
+python scripts/install-k8s-keeper.py --allow-root --interactive-ports
 ```
 
 ### Post-Installation Verification
@@ -79,38 +75,6 @@ kubectl get secrets -n keeper-demo
 kubectl describe secret keeper-synced-secret -n keeper-demo
 ```
 
-### Common Operations
-
-#### Resume Failed Installation
-```bash
-# Resume from a specific stage
-python install-k8s-keeper.py --resume 05 --allow-root
-```
-
-#### Uninstall Components
-```bash
-# Interactive uninstall menu
-python install-k8s-keeper.py --uninstall --allow-root
-
-# Complete removal
-python install-k8s-keeper.py --uninstall-all --allow-root
-
-# Clean up corrupted External Secrets
-python install-k8s-keeper.py --clean-external-secrets --allow-root
-```
-
-#### Troubleshooting
-```bash
-# Check installation logs
-cat /tmp/k8s-keeper-build/install.log
-
-# Verify cluster status
-kubectl cluster-info
-
-# Check External Secrets CRDs
-kubectl get crd | grep external-secrets
-```
-
 ### Expected Status After Installation
 
 #### ✅ Normal Healthy State
@@ -130,7 +94,36 @@ kubectl get crd | grep external-secrets
 
 ---
 
-## Architecture & Design Philosophy
+## 📁 Project Structure
+
+```
+kubernetes-keeper-suite/
+├── scripts/                    # Core automation scripts
+│   ├── install-k8s-keeper.py   # Foundation installer (7-stage process)
+│   ├── manage-secrets.py       # Secrets management with Enhanced UX
+│   ├── k8s-devops-automation.py # DevOps operations & monitoring
+│   └── advanced-secrets-manager.py # Advanced secrets workflows
+├── config/                     # Configuration templates
+│   ├── environments.yaml       # Environment-specific configs
+│   └── keeper-config.template.json # Keeper configuration template
+├── examples/                   # Usage examples & templates
+│   ├── basic-secret.yaml       # Basic ExternalSecret example
+│   ├── docker-registry-example.yaml # Docker registry auth
+│   └── push-secret-example.yaml # PushSecret example
+├── docs/                       # Comprehensive documentation
+│   └── DEVELOPMENT.md          # Development workflow guide
+├── k8s-templates/              # Kubernetes YAML templates
+│   ├── deployment.yaml         # Deployment template with variables
+│   ├── service.yaml            # Service template
+│   ├── ingress.yaml            # Ingress template
+│   ├── configmap.yaml          # ConfigMap template
+│   └── hpa.yaml                # HorizontalPodAutoscaler template
+└── Makefile                    # Automation shortcuts
+```
+
+---
+
+## 🏗️ Architecture & Design Philosophy
 
 ### Core Design Principles
 - **Stage-based Architecture**: Modular installation stages that can be resumed independently
@@ -148,64 +141,52 @@ kubectl get crd | grep external-secrets
 
 ---
 
-## Section-by-Section Technical Documentation
+## 📋 Complete Script Documentation & API Reference
 
-## 1. Configuration & Constants
+### 1. Foundation Installer (`install-k8s-keeper.py`)
 
-### 1.1 Core Configuration Classes
+**Purpose**: Complete Kubernetes cluster setup with Keeper Secrets Manager integration using a 7-stage installation process with intelligent port management and state persistence.
 
-#### `StageStatus` (Enum)
-```python
-class StageStatus(Enum):
-    PENDING = "pending"
-    RUNNING = "running" 
-    SUCCESS = "success"
-    FAILED = "failed"
-    SKIPPED = "skipped"
+#### Command Syntax
+```bash
+python scripts/install-k8s-keeper.py [OPTIONS]
 ```
-**Purpose**: Defines the possible states of each installation stage for state management and flow control.
 
-#### `StageResult` (Dataclass)
-```python
-@dataclass
-class StageResult:
-    status: StageStatus
-    message: str
-    data: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-```
-**Purpose**: Standardized return object for all stage operations containing status, descriptive message, optional data payload, and error details.
+#### Core Configuration Classes
 
-#### `BuildConfig` (Dataclass)
+##### `BuildConfig` (Dataclass)
 ```python
 @dataclass
 class BuildConfig:
+    # Security options
     allow_root: bool = False
+    allow_destructive: bool = False
+    
+    # Installation modes
     production_only: bool = False
     dev_only: bool = False
     skip_dashboard: bool = False
+    
+    # Keeper integration
     ksm_token: Optional[str] = None
     ksm_config_file: Optional[str] = None
+    
+    # Port configuration
+    auto_port_selection: Optional[bool] = None
+    custom_ports: Optional[Dict[str, int]] = None
+    
+    # State management
     resume_stage: Optional[str] = None
     skip_stages: List[str] = None
     work_dir: str = "/tmp/k8s-keeper-build"
+    
+    # Debug options
     debug_mode: bool = False
     debug_output_file: Optional[str] = None
     reconfigure_mode: bool = False
-    allow_destructive: bool = False
-    auto_port_selection: Optional[bool] = None
-    custom_ports: Optional[Dict[str, int]] = None
 ```
-**Purpose**: Central configuration object that controls all aspects of the installation behavior, command-line argument processing, and user preferences.
 
-**Key Fields**:
-- **Security**: `allow_root`, `allow_destructive` - Control dangerous operations
-- **Installation Modes**: `production_only`, `dev_only` - Control component selection
-- **Port Management**: `auto_port_selection`, `custom_ports` - Control port configuration
-- **State Management**: `resume_stage`, `skip_stages` - Control installation flow
-- **Keeper Integration**: `ksm_token`, `ksm_config_file` - Keeper configuration options
-
-#### `BuildState` (Dataclass)
+##### `BuildState` (Dataclass)
 ```python
 @dataclass
 class BuildState:
@@ -217,1147 +198,1348 @@ class BuildState:
     dashboard_token: Optional[str] = None
     selected_ports: Dict[str, int] = None
 ```
-**Purpose**: Persistent state object that tracks installation progress, stores configuration decisions, and enables resume functionality.
 
-**Key Fields**:
-- **Progress Tracking**: `stages_completed`, `current_stage` - Resume capability
-- **Runtime State**: `cluster_ready`, `dashboard_token` - Component status
-- **User Decisions**: `selected_ports`, `keeper_folders` - Preserve user choices
+#### Build Options
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--allow-root` | flag | false | **Security**: Permit execution as root user |
+| `--production-only` | flag | false | **Mode**: Install only production components (no dev tools) |
+| `--dev-only` | flag | false | **Mode**: Install only development components (no External Secrets) |
+| `--skip-dashboard` | flag | false | **Component**: Skip Kubernetes Dashboard installation |
+
+#### Keeper Integration Options
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--ksm-token` | string | None | **Auth**: Keeper Secrets Manager one-time token |
+| `--ksm-config` | path | None | **Auth**: Path to existing KSM configuration file |
+
+#### Advanced Port Configuration System
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--auto-ports` | flag | false | **Network**: Automatically select available ports using intelligent scanning |
+| `--interactive-ports` | flag | false | **Network**: Interactive port selection with comprehensive analysis |
+| `--http-port` | int | 8080 | **Network**: Custom HTTP port for cluster access |
+| `--https-port` | int | 8443 | **Network**: Custom HTTPS port for cluster access |
+| `--dashboard-port` | int | 30001 | **Network**: Custom dashboard port (NodePort) |
+| `--nodeport` | int | 30000 | **Network**: Custom NodePort base for services |
+
+#### State Management & Resume System
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--resume` | string | None | **State**: Resume from specific stage (01-07) |
+| `--skip-stages` | string | None | **State**: Skip specified stages (comma-separated) |
+| `--work-dir` | path | `/tmp/k8s-keeper-build` | **State**: Custom work directory for logs/state persistence |
+| `--debug` | flag | false | **Debug**: Enable debug mode with verbose logging |
+| `--debug-output` | path | None | **Debug**: Save debug output to file |
+| `--reconfigure` | flag | false | **State**: Interactive reconfigure mode |
+| `--allow-destructive` | flag | false | **Security**: Allow destructive operations (requires confirmation) |
+
+#### Comprehensive Uninstall System
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--uninstall` | flag | false | **Removal**: Interactive uninstall menu with granular options |
+| `--uninstall-all` | flag | false | **Removal**: Complete removal (cluster + tools + dashboard + Docker cleanup) |
+| `--uninstall-cluster` | flag | false | **Removal**: Remove only Kubernetes cluster while preserving tools |
+| `--uninstall-tools` | flag | false | **Removal**: Remove only installed tools (kubectl, kind, helm, go, ksm) |
+| `--uninstall-dashboard` | flag | false | **Removal**: Remove only Kubernetes Dashboard |
+| `--clean-external-secrets` | flag | false | **Removal**: Specialized cleanup for corrupted External Secrets installations |
+
+#### 7-Stage Installation Process
+
+1. **Stage 01 - Prerequisites Check**: System validation, Docker status, Python version
+2. **Stage 02 - Tools Installation**: kubectl, Kind, Helm, Go, KSM CLI installation
+3. **Stage 03 - Cluster Setup**: Kind cluster creation with intelligent port mapping
+4. **Stage 04 - Dashboard**: Kubernetes Dashboard with admin access and NodePort
+5. **Stage 05 - External Secrets**: External Secrets Operator with advanced CRD validation
+6. **Stage 06 - Keeper Integration**: KSM configuration, SecretStore creation, example setup
+7. **Stage 07 - Validation**: Comprehensive system validation and usage information
+
+#### Port Management System Features
+
+##### Intelligent Port Selection Methods
+1. **Automatic Selection** (`--auto-ports`): Scans system, detects conflicts, suggests optimal ports
+2. **Interactive Selection** (`--interactive-ports`): Comprehensive analysis with user control
+3. **Custom Assignment**: Specific port assignment with conflict detection
+
+##### Port Analysis Categories
+- **Web Services** (8000-8100): HTTP alternatives and development servers
+- **Alt HTTP** (3000-3100): Framework defaults and development tools
+- **Development** (4000-4100): Local development server ranges
+- **Kubernetes NodePort** (30000-32767): Kubernetes service exposure range
+
+##### Conflict Resolution
+- **Automatic Detection**: Real-time port availability scanning
+- **Alternative Suggestions**: Intelligent fallback port recommendations
+- **User Warnings**: Clear notifications of port conflicts with override options
+
+#### Installation Examples
+```bash
+# Basic installation with automatic port selection
+python scripts/install-k8s-keeper.py --allow-root --auto-ports
+
+# Production installation with custom ports
+python scripts/install-k8s-keeper.py --allow-root --production-only --http-port 8090 --dashboard-port 30005
+
+# Development installation with interactive port selection
+python scripts/install-k8s-keeper.py --allow-root --dev-only --interactive-ports
+
+# Resume from External Secrets stage after failure
+python scripts/install-k8s-keeper.py --resume 05 --allow-root
+
+# Debug installation with custom work directory
+python scripts/install-k8s-keeper.py --allow-root --debug --work-dir /custom/build --debug-output install-debug.log
+
+# Skip dashboard and use Keeper token
+python scripts/install-k8s-keeper.py --allow-root --skip-dashboard --ksm-token "YOUR_KEEPER_TOKEN"
+
+# Complete uninstall
+python scripts/install-k8s-keeper.py --uninstall-all --allow-root
+```
+
+#### Common Operations & Recovery
+```bash
+# Resume failed installation from specific stage
+python scripts/install-k8s-keeper.py --resume 05 --allow-root
+
+# Clean up corrupted External Secrets installation
+python scripts/install-k8s-keeper.py --clean-external-secrets --allow-root
+
+# Interactive uninstall menu
+python scripts/install-k8s-keeper.py --uninstall --allow-root
+
+# Check installation logs
+cat /tmp/k8s-keeper-build/install.log
+
+# Verify cluster status
+kubectl cluster-info
+kubectl get pods --all-namespaces
+```
 
 ---
 
-## 2. Logging System
+### 2. Enhanced Secrets Management (`manage-secrets.py`)
 
-### 2.1 ColoredFormatter Class
-```python
-class ColoredFormatter(logging.Formatter):
-    COLORS = {
-        'DEBUG': '\033[0;36m',    # Cyan
-        'INFO': '\033[0;34m',     # Blue  
-        'WARNING': '\033[1;33m',  # Yellow
-        'ERROR': '\033[0;31m',    # Red
-        'SUCCESS': '\033[0;32m',  # Green
-        'STAGE': '\033[0;35m',    # Purple
-    }
+**Purpose**: Comprehensive Keeper Secrets Manager integration with Enhanced UX, validation, and guided assistance
+
+#### Command Syntax
+```bash
+python scripts/manage-secrets.py [OPTIONS]
 ```
-**Purpose**: Provides color-coded console output for improved readability and user experience.
 
-**Features**:
-- **Visual Hierarchy**: Different colors for different log levels
-- **Stage Identification**: Special purple color for stage transitions
-- **Error Emphasis**: Red for errors, yellow for warnings
-- **Success Feedback**: Green for successful operations
+#### Core Configuration Classes
 
-### 2.2 Dual Logging System
+##### `SecretConfig` (Dataclass)
 ```python
-def setup_logging(work_dir: str) -> logging.Logger:
-    # Console handler with colors
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_formatter = ColoredFormatter('%(levelname)s %(message)s')
+@dataclass
+class SecretConfig:
+    record_uid: str
+    secret_name: str
+    namespace: str = "default"
+    properties: List[str] = None  # Defaults to ["login", "password"]
+    template: Optional[str] = None
+    refresh_interval: str = "30s"
+```
+
+##### `KeeperRecord` (Dataclass)
+```python
+@dataclass
+class KeeperRecord:
+    uid: str
+    title: str
+    record_type: str
+    folder: Optional[str] = None
+    properties: List[str] = None
+```
+
+#### Discovery & Search Commands
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--list-records` | flag | false | **Discovery**: List all Keeper records with UID, type, and title |
+| `--search` | string | None | **Discovery**: Search records by keyword with filtering |
+
+#### Enhanced Secret Management
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--create` | flag | false | **Interactive**: Enhanced wizard with validation and examples |
+| `--deploy` | flag | false | **Quick**: Quick deploy (requires --record and --name) |
+| `--record` | string | None | **Config**: Keeper record UID with validation |
+| `--name` | string | None | **Config**: Kubernetes secret name (validated against K8s naming rules) |
+| `--namespace` | string | `default` | **Config**: Kubernetes namespace (validated) |
+| `--properties` | string | `login,password` | **Config**: Comma-separated properties with validation |
+
+#### Monitoring & Status Commands
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--status` | flag | false | **Monitor**: Show comprehensive External Secrets status |
+| `--watch` | flag | false | **Monitor**: Real-time monitoring (use with --status) |
+| `--debug` | flag | false | **Debug**: Enhanced debug mode with detailed logging |
+
+#### Enhanced UX Features
+
+##### Interactive Secret Creation Wizard
+1. **Record Discovery**: Automatic Keeper vault enumeration with search
+2. **Smart Selection**: Record selection with search, pagination, and manual entry
+3. **Validation**: Real-time Kubernetes naming validation
+4. **Property Analysis**: Automatic property discovery with custom selection
+5. **Progress Feedback**: Step-by-step progress with helpful tips
+6. **Error Recovery**: Comprehensive error handling with troubleshooting guidance
+
+##### Validation System
+- **Kubernetes Names**: RFC 1123 compliance validation for secrets and namespaces
+- **Record UIDs**: Format validation and existence checking
+- **Properties**: Available property validation against record schema
+- **Namespace**: Existence checking with auto-creation
+
+##### Enhanced Error Handling
+- **User-Friendly Messages**: Clear, actionable error descriptions
+- **Troubleshooting Guidance**: Step-by-step recovery instructions
+- **Examples**: Inline examples for common operations
+- **Help Tips**: Contextual guidance throughout the workflow
+
+#### Secret Management Examples
+```bash
+# Enhanced interactive creation with full guidance
+python scripts/manage-secrets.py --create
+
+# Quick discovery and listing
+python scripts/manage-secrets.py --list-records
+python scripts/manage-secrets.py --search "production"
+
+# Validated quick deployment
+python scripts/manage-secrets.py --deploy --record "ABC123def456" --name "db-credentials" --namespace "production"
+
+# Custom properties with validation
+python scripts/manage-secrets.py --deploy --record "API789xyz" --name "api-keys" --properties "api_key,secret_key,endpoint_url"
+
+# Comprehensive monitoring
+python scripts/manage-secrets.py --status
+python scripts/manage-secrets.py --status --watch
+
+# Debug mode with enhanced logging
+python scripts/manage-secrets.py --create --debug
+```
+
+#### Secret Workflow Examples
+```bash
+# Complete secret setup workflow
+python scripts/manage-secrets.py --list-records                    # Discover available records
+python scripts/manage-secrets.py --search "database"              # Find specific records
+python scripts/manage-secrets.py --create                         # Interactive creation
+python scripts/manage-secrets.py --status --watch                 # Monitor sync status
+
+# Production secret deployment
+python scripts/manage-secrets.py --deploy \
+  --record "PROD_DB_123456" \
+  --name "production-database" \
+  --namespace "production" \
+  --properties "username,password,host,port,database"
+
+# Development workflow
+python scripts/manage-secrets.py --deploy \
+  --record "DEV_API_789" \
+  --name "dev-api-keys" \
+  --namespace "development" \
+  --properties "api_key,webhook_secret"
+```
+
+---
+
+### 3. DevOps Automation (`k8s-devops-automation.py`)
+
+**Purpose**: Comprehensive deployment, monitoring, backup, CI/CD, and security management
+
+#### Command Syntax
+```bash
+python scripts/k8s-devops-automation.py [OPTIONS]
+```
+
+#### Core Configuration Classes
+
+##### `DeploymentConfig` (Dataclass)
+```python
+@dataclass
+class DeploymentConfig:
+    name: str
+    namespace: str
+    image: str
+    tag: str = "latest"
+    replicas: int = 1
+    strategy: DeploymentStrategy = DeploymentStrategy.ROLLING
+    environment: EnvironmentType = EnvironmentType.DEVELOPMENT
+    secrets: List[str] = field(default_factory=list)
+    config_maps: List[str] = field(default_factory=list)
+    ports: List[int] = field(default_factory=list)
+    health_check_path: str = "/health"
+    resources: Dict[str, str] = field(default_factory=dict)
+    env_vars: Dict[str, str] = field(default_factory=dict)
+```
+
+##### `MonitoringConfig` (Dataclass)
+```python
+@dataclass
+class MonitoringConfig:
+    enable_metrics: bool = True
+    enable_logging: bool = True
+    enable_tracing: bool = False
+    prometheus_enabled: bool = True
+    grafana_enabled: bool = True
+    alertmanager_enabled: bool = True
+    log_level: str = "info"
+    retention_days: int = 30
+```
+
+##### `BackupConfig` (Dataclass)
+```python
+@dataclass
+class BackupConfig:
+    enabled: bool = True
+    schedule: str = "0 2 * * *"  # Daily at 2 AM
+    retention_days: int = 7
+    include_secrets: bool = True
+    include_configs: bool = True
+    storage_path: str = "/tmp/k8s-backups"
+```
+
+#### Deployment Management
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--deploy` | flag | false | **Interactive**: Comprehensive deployment wizard with templates |
+| `--quick-deploy` | flag | false | **Quick**: Quick deployment (requires --name and --image) |
+| `--list-deployments` | flag | false | **List**: List all deployments with status and metrics |
+| `--scale` | string | None | **Scale**: Scale deployment (format: name:namespace:replicas) |
+| `--update` | string | None | **Update**: Update deployment image (format: name:namespace:image:tag) |
+| `--rollback` | string | None | **Rollback**: Rollback deployment (format: name:namespace[:revision]) |
+| `--delete-deployment` | string | None | **Delete**: Delete deployment with confirmation (format: name:namespace) |
+
+#### Monitoring & Observability Stack
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--setup-monitoring` | flag | false | **Setup**: Complete monitoring stack (Prometheus, Grafana, Alertmanager) |
+| `--cluster-status` | flag | false | **Status**: Comprehensive cluster health and resource usage |
+| `--metrics` | flag | false | **Metrics**: Detailed cluster metrics and performance data |
+
+#### Backup & Recovery System
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--setup-backup` | flag | false | **Setup**: Complete backup system with Velero and scheduling |
+| `--create-backup` | string | None | **Backup**: Create immediate backup (optional custom name) |
+| `--list-backups` | flag | false | **List**: List all available backups with status and metadata |
+| `--restore-backup` | string | None | **Restore**: Restore from backup with confirmation |
+
+#### Helm Chart Management
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--list-helm` | flag | false | **List**: List all Helm releases with status and versions |
+| `--install-chart` | string | None | **Install**: Install Helm chart (format: release:chart:namespace[:repo-url]) |
+
+#### CI/CD Pipeline Integration
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--setup-cicd` | string | None | **Setup**: Setup CI/CD pipeline (jenkins or argocd) |
+
+#### Security & Compliance Management
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--setup-security` | flag | false | **Setup**: Complete security stack (Falco, OPA Gatekeeper, Network Policies) |
+| `--security-scan` | flag | false | **Scan**: Comprehensive vulnerability scanning |
+| `--compliance-report` | flag | false | **Report**: Generate detailed compliance report |
+
+#### Common Configuration Parameters
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--name` | string | None | **Config**: Application/resource name |
+| `--image` | string | None | **Config**: Container image |
+| `--tag` | string | `latest` | **Config**: Image tag |
+| `--namespace` | string | `default` | **Config**: Kubernetes namespace |
+| `--replicas` | int | 1 | **Config**: Number of replicas |
+| `--debug` | flag | false | **Debug**: Enhanced debug logging |
+
+#### Comprehensive DevOps Examples
+```bash
+# Complete DevOps setup workflow
+python scripts/k8s-devops-automation.py --setup-monitoring      # Setup Prometheus/Grafana stack
+python scripts/k8s-devops-automation.py --setup-backup         # Setup Velero backup system
+python scripts/k8s-devops-automation.py --setup-security       # Setup security scanning tools
+python scripts/k8s-devops-automation.py --setup-cicd jenkins   # Setup Jenkins CI/CD
+
+# Interactive application deployment
+python scripts/k8s-devops-automation.py --deploy
+
+# Quick deployment with full configuration
+python scripts/k8s-devops-automation.py --quick-deploy \
+  --name "web-app" \
+  --image "nginx" \
+  --tag "1.21" \
+  --namespace "production" \
+  --replicas 3
+
+# Deployment lifecycle management
+python scripts/k8s-devops-automation.py --scale web-app:production:5
+python scripts/k8s-devops-automation.py --update web-app:production:nginx:1.22
+python scripts/k8s-devops-automation.py --rollback web-app:production:2
+
+# Monitoring and observability
+python scripts/k8s-devops-automation.py --cluster-status
+python scripts/k8s-devops-automation.py --metrics
+
+# Backup operations
+python scripts/k8s-devops-automation.py --create-backup "weekly-backup-$(date +%Y%m%d)"
+python scripts/k8s-devops-automation.py --list-backups
+python scripts/k8s-devops-automation.py --restore-backup "weekly-backup-20241201"
+
+# Security operations
+python scripts/k8s-devops-automation.py --security-scan --namespace production
+python scripts/k8s-devops-automation.py --compliance-report
+
+# Helm operations
+python scripts/k8s-devops-automation.py --list-helm
+python scripts/k8s-devops-automation.py --install-chart prometheus:prometheus-community/kube-prometheus-stack:monitoring
+```
+
+#### Advanced Monitoring Features
+
+##### Prometheus Stack Setup
+- **Prometheus**: Metrics collection and alerting
+- **Grafana**: Visualization and dashboards (NodePort: 30091)
+- **Alertmanager**: Alert routing and management (NodePort: 30092)
+- **Node Exporter**: System metrics collection
+- **Custom Dashboards**: Application-specific monitoring
+
+##### Backup System Features
+- **Velero Integration**: Complete cluster backup and restore
+- **Scheduled Backups**: Automated backup scheduling with retention
+- **Selective Backup**: Namespace and resource filtering
+- **Cross-cluster Restore**: Disaster recovery capabilities
+
+##### Security Stack Components
+- **Falco**: Runtime security monitoring and alerting
+- **OPA Gatekeeper**: Policy enforcement and compliance
+- **Network Policies**: Micro-segmentation and traffic control
+- **Vulnerability Scanning**: Container image security assessment
+
+---
+
+### 4. Advanced Secrets Manager (`advanced-secrets-manager.py`)
+
+**Purpose**: Advanced secrets workflows, templates, bulk operations, and automation
+
+#### Command Syntax
+```bash
+python scripts/advanced-secrets-manager.py [OPTIONS]
+```
+
+#### Template Management System
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--list-templates` | flag | false | **Templates**: List available secret templates with descriptions |
+| `--template` | string | None | **Templates**: Create secret from template (postgres, mysql, docker-registry, etc.) |
+| `--create-template` | string | None | **Templates**: Create new custom template |
+
+#### Bulk Operations & Automation
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--import-folder` | string | None | **Bulk**: Import all secrets from Keeper folder with batch processing |
+| `--export-secrets` | string | None | **Bulk**: Export secrets configuration to file |
+| `--sync-all` | flag | false | **Bulk**: Synchronize all ExternalSecrets with status reporting |
+
+#### Advanced Security Configuration
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--rotation-policy` | string | None | **Security**: Set automatic rotation policy for secrets |
+| `--access-policy` | string | None | **Security**: Configure RBAC access policies |
+| `--audit-log` | flag | false | **Security**: Enable comprehensive audit logging |
+
+#### Workflow Management & Automation
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--workflow` | string | None | **Workflow**: Execute predefined workflow (dev-deploy, prod-migrate, etc.) |
+| `--schedule` | string | None | **Workflow**: Schedule workflow execution with cron syntax |
+
+#### Built-in Template System
+
+##### Available Templates
+- **postgres**: PostgreSQL database credentials with connection parameters
+- **mysql**: MySQL database credentials with host/port configuration
+- **docker-registry**: Docker registry authentication for private repositories
+- **api-key**: API key authentication with endpoint configuration
+- **tls-cert**: TLS certificate and private key for HTTPS
+- **generic**: Generic key-value secret for custom use cases
+
+##### Template Features
+- **Auto-configuration**: Intelligent property mapping based on record type
+- **Validation**: Template-specific validation rules
+- **Best Practices**: Security and naming conventions enforcement
+- **Documentation**: Inline comments and usage examples
+
+#### Advanced Examples
+```bash
+# Template operations
+python scripts/advanced-secrets-manager.py --list-templates
+python scripts/advanced-secrets-manager.py --template postgres --record "DB_PROD_123" --name "postgres-creds" --namespace "database"
+
+# Bulk operations
+python scripts/advanced-secrets-manager.py --import-folder "production-secrets"
+python scripts/advanced-secrets-manager.py --export-secrets secrets-backup.yaml
+python scripts/advanced-secrets-manager.py --sync-all
+
+# Security policies
+python scripts/advanced-secrets-manager.py --rotation-policy "30d" --name "database-credentials"
+python scripts/advanced-secrets-manager.py --access-policy "team:database-admins" --namespace "production"
+
+# Workflow automation
+python scripts/advanced-secrets-manager.py --workflow "prod-deployment" --namespace "production"
+python scripts/advanced-secrets-manager.py --schedule "0 2 * * 0" --workflow "weekly-rotation"
+```
+
+---
+
+## 🔧 Configuration System & Environment Management
+
+### Environment Configuration (`config/environments.yaml`)
+
+```yaml
+environments:
+  development:
+    namespace: "dev"
+    replicas: 1
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+    monitoring:
+      enabled: true
+      retention: "7d"
+    security:
+      network_policies: false
+      pod_security: "baseline"
     
-    # File handler for debugging
-    file_handler = logging.FileHandler(f"{work_dir}/install.log")
-    file_handler.setLevel(logging.DEBUG)
-    file_formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+  staging:
+    namespace: "staging"
+    replicas: 2
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "200m"
+      limits:
+        memory: "512Mi"
+        cpu: "400m"
+    monitoring:
+      enabled: true
+      retention: "30d"
+    security:
+      network_policies: true
+      pod_security: "restricted"
+    
+  production:
+    namespace: "prod"
+    replicas: 3
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "400m"
+      limits:
+        memory: "1Gi"
+        cpu: "800m"
+    monitoring:
+      enabled: true
+      retention: "90d"
+    security:
+      network_policies: true
+      pod_security: "restricted"
+      audit_logging: true
 ```
-**Purpose**: Creates both console and file logging for user feedback and debugging.
 
-**Features**:
-- **Console Logging**: Colored, INFO level, user-friendly
-- **File Logging**: Detailed, DEBUG level, includes timestamps
-- **Persistent Records**: Installation logs saved for troubleshooting
+### Keeper Configuration Template (`config/keeper-config.template.json`)
+
+```json
+{
+  "version": "2",
+  "server": "https://keepersecurity.com/api/v2/",
+  "user": "your-keeper-email@example.com",
+  "deviceToken": "device-token-from-keeper",
+  "privateKey": "base64-encoded-private-key",
+  "appData": {
+    "appKey": "application-specific-key",
+    "serverPublicKeyId": "server-public-key-id"
+  },
+  "clientVersion": "16.10.2"
+}
+```
 
 ---
 
-## 3. Port Management System
+## 🔄 Complete Usage Patterns & Workflows
 
-### 3.1 Port Detection Functions
+### Foundation Setup Workflow
 
-#### `is_port_in_use(port: int, host: str = 'localhost') -> bool`
-**Purpose**: Tests if a specific port is currently occupied using socket connection.
-**Implementation**: Attempts TCP connection with 1-second timeout.
-**Return**: `True` if port is in use, `False` if available.
-
-#### `get_used_ports(port_range: Tuple[int, int]) -> List[int]`
-**Purpose**: Scans a range of ports to identify which are currently in use.
-**Implementation**: Iterates through range calling `is_port_in_use()`.
-**Optimization**: Limits scans to 50 ports per range to prevent excessive scanning time.
-
-#### `get_available_ports(port_range: Tuple[int, int], count: int = 5) -> List[int]`
-**Purpose**: Finds available ports within a specified range.
-**Implementation**: Returns first `count` available ports found.
-**Use Case**: Provides alternatives when preferred ports are unavailable.
-
-### 3.2 Intelligent Port Suggestion
-
-#### `suggest_ports() -> Dict[str, int]`
-**Purpose**: Automatically suggests optimal ports for all services based on availability.
-
-**Default Port Preferences**:
-- `http`: 8080 (standard alternate HTTP)
-- `https`: 8443 (standard alternate HTTPS)
-- `nodeport`: 30000 (Kubernetes NodePort range start)
-- `dashboard`: 30001 (Sequential NodePort assignment)
-
-**Fallback Logic**:
-1. **Try Preferred**: Use default ports if available
-2. **Find Alternatives**: Search appropriate ranges for alternatives
-3. **Fallback Range**: Use any available port in 8000-9000 range
-4. **Force Assignment**: Use preferred port with conflict warning
-
-### 3.3 Interactive Port Management
-
-#### `interactive_port_selection() -> Dict[str, int]`
-**Purpose**: Provides comprehensive interactive port selection interface.
-
-**Features**:
-1. **Port Analysis Dashboard**: Shows used/available ports by category
-2. **Smart Recommendations**: Displays suggested ports with availability status
-3. **User Choice Menu**: 
-   - Use suggested ports (recommended)
-   - Customize port selection
-   - Show detailed port analysis
-
-#### `custom_port_selection(suggested: Dict[str, int]) -> Dict[str, int]`
-**Purpose**: Allows manual override of any suggested port.
-
-**Features**:
-- **Per-Service Configuration**: Individual port selection for each service
-- **Conflict Warnings**: Alerts when selecting in-use ports
-- **Validation**: Ensures ports are within valid range (1-65535)
-- **Default Preservation**: Press Enter to keep suggested ports
-
-#### `show_detailed_port_analysis()`
-**Purpose**: Comprehensive port analysis showing system-wide port usage.
-
-**Analysis Categories**:
-- **Web Services** (8000-8100): HTTP alternatives
-- **Alt HTTP** (3000-3100): Development servers
-- **Development** (4000-4100): Framework defaults
-- **Kubernetes** (30000-32767): NodePort range
-- **Common Services**: MySQL, PostgreSQL, MongoDB, Redis, etc.
-
-**Output Format**:
-- **Used Ports**: Shows occupied ports in each range
-- **Available Ports**: Lists available alternatives
-- **Service Status**: Shows common service port availability
-
----
-
-## 4. Utility Functions
-
-### 4.1 Command Execution
-
-#### `run_command()` - Enhanced Command Runner
-```python
-def run_command(cmd: str, check: bool = True, capture_output: bool = True, 
-                shell: bool = True, cwd: Optional[str] = None, 
-                suppress_errors: bool = False) -> subprocess.CompletedProcess
-```
-**Purpose**: Centralized command execution with comprehensive error handling.
-
-**Parameters**:
-- `cmd`: Shell command to execute
-- `check`: Whether to raise exception on non-zero exit
-- `capture_output`: Whether to capture stdout/stderr
-- `shell`: Whether to use shell interpretation
-- `cwd`: Working directory for command execution
-- `suppress_errors`: Whether to suppress error logging
-
-**Features**:
-- **Debug Logging**: All commands logged at DEBUG level
-- **Error Context**: Detailed error reporting with command and output
-- **Selective Suppression**: Can suppress expected errors (like existence checks)
-- **Flexible Configuration**: Supports various execution contexts
-
-#### `check_command_exists(command: str) -> bool`
-**Purpose**: Tests if a command exists in system PATH.
-**Implementation**: Uses `command -v` with error suppression.
-**Use Case**: Determines which tools need installation.
-
-#### `check_service_exists(check_cmd: str, service_name: str) -> bool`
-**Purpose**: Generic service/resource existence checker.
-**Implementation**: Runs check command with error suppression.
-**Use Case**: Determines if Kubernetes resources or Helm releases exist.
-
-### 4.2 File Operations
-
-#### `download_file(url: str, dest: str) -> None`
-**Purpose**: Downloads files from URLs with proper error handling.
-**Features**:
-- **Error Context**: Detailed error messages with URL
-- **Permissions**: Sets executable permissions automatically
-- **Exception Handling**: Converts download errors to RuntimeError
-
-#### `prompt_choice(question: str, choices: List[str]) -> str`
-**Purpose**: Interactive menu system for user choices.
-**Features**:
-- **Numbered Options**: Clear numbering for all choices
-- **Input Validation**: Ensures valid selection
-- **Error Recovery**: Handles invalid input gracefully
-- **Interrupt Handling**: Manages KeyboardInterrupt exceptions
-
----
-
-## 5. Stage Base Class Architecture
-
-### 5.1 Stage Class Design
-```python
-class Stage:
-    def __init__(self, name: str, description: str, config: BuildConfig, state: BuildState)
-    def should_run(self) -> bool
-    def execute(self) -> StageResult  # Abstract method
-    def run(self) -> StageResult      # Template method
-```
-
-**Design Pattern**: Template Method Pattern
-**Purpose**: Provides consistent stage execution framework with customizable implementation.
-
-#### Core Methods:
-
-##### `should_run() -> bool`
-**Purpose**: Determines if stage should execute based on configuration and state.
-**Logic**:
-1. **Skip Check**: Stage in skip_stages list
-2. **Completion Check**: Stage already completed
-3. **Default**: Run if neither condition applies
-
-##### `run() -> StageResult` (Template Method)
-**Purpose**: Orchestrates stage execution with consistent logging and error handling.
-**Flow**:
-1. **Pre-execution Check**: Call `should_run()`
-2. **Logging**: Log stage start with description
-3. **Execution**: Call abstract `execute()` method
-4. **State Management**: Update completion list on success
-5. **Result Logging**: Log success/failure with details
-6. **Exception Handling**: Convert exceptions to StageResult
-
-##### `execute() -> StageResult` (Abstract)
-**Purpose**: Stage-specific implementation logic.
-**Contract**: Must return StageResult with appropriate status and message.
-
----
-
-## 6. Stage Implementations
-
-### 6.1 PrerequisitesStage
-
-**Purpose**: Validates system prerequisites before installation begins.
-
-**Checks Performed**:
-1. **Root User Validation**: Prevents root execution unless explicitly allowed
-2. **Docker Installation**: Verifies Docker is installed
-3. **Docker Status**: Confirms Docker daemon is running
-4. **Docker Permissions**: Tests user can execute Docker commands
-5. **Python Version**: Ensures Python 3.7+ compatibility
-
-**Error Conditions**:
-- Running as root without `--allow-root` flag
-- Docker not installed or not running
-- User lacks Docker permissions (warning only)
-- Python version incompatibility
-
-**Success Criteria**: All checks pass with detailed status report.
-
-### 6.2 ToolsInstallationStage
-
-**Purpose**: Installs required Kubernetes and development tools.
-
-**Tools Installed**:
-
-#### kubectl (Kubernetes CLI)
-- **Detection**: Uses `command -v kubectl`
-- **Installation**: Downloads latest stable version from official repository
-- **Location**: `/usr/local/bin/kubectl`
-- **Permissions**: Sets executable permissions
-- **Verification**: Tool added to tools_installed list
-
-#### Kind (Kubernetes in Docker)
-- **Detection**: Uses `command -v kind`
-- **Version**: Fixed version v0.20.0 for stability
-- **Source**: Official Kind GitHub releases
-- **Installation**: Direct binary download and installation
-
-#### Helm (Kubernetes Package Manager)
-- **Detection**: Uses `command -v helm`
-- **Installation**: Official get-helm-3 script
-- **Method**: Automated script execution with bash
-
-#### Go Programming Language (Development Mode Only)
-- **Condition**: Skipped if `production_only` mode
-- **Detection**: Uses `command -v go`
-- **Version**: 1.21.5 (specific version for compatibility)
-- **Installation**: Downloads, extracts, and installs to `/usr/local/go`
-- **PATH Update**: Adds Go binary directory to current session PATH
-
-#### KSM CLI (Keeper Secrets Manager CLI)
-- **Condition**: Skipped if `dev_only` mode
-- **Installation**: Uses pip3 package manager
-- **Package**: `keeper-secrets-manager-cli`
-- **Error Handling**: Non-fatal - warns on failure
-
-**Installation Flow**:
-1. **Detection Phase**: Check each tool individually
-2. **Status Reporting**: Log "already installed" or "installing"
-3. **Installation Phase**: Download and install missing tools
-4. **Verification Phase**: Confirm successful installation
-5. **Summary**: Report which tools were installed
-
-**Error Handling**:
-- **Fatal Errors**: kubectl, kind, helm installation failures
-- **Warnings**: Go, KSM CLI installation failures (non-critical)
-- **Permission Handling**: Uses sudo for non-root installations
-
-### 6.3 ClusterSetupStage
-
-**Purpose**: Creates Kubernetes cluster with intelligent port configuration.
-
-#### Port Configuration System
-
-##### `_get_port_configuration() -> Dict[str, int]`
-**Decision Matrix**:
-1. **Previous Selection**: Use saved ports from previous run
-2. **Command Line**: Use custom ports from CLI arguments
-3. **Automatic Mode**: Use `suggest_ports()` for optimal selection
-4. **Interactive Mode**: Use full interactive selection interface
-5. **Default Prompt**: Ask user to choose method
-
-##### `_prompt_port_selection_method() -> Dict[str, int]`
-**User Options**:
-1. **Automatic Selection**: Recommended for most users
-2. **Interactive Selection**: Full control with recommendations
-3. **Show Analysis First**: Educational port analysis before selection
-
-#### Cluster Creation Process
-
-##### Kind Cluster Configuration
-```yaml
-kind: Cluster
-apiVersion: kind.x-k8s.io/v1alpha4
-name: keeper-cluster
-nodes:
-- role: control-plane
-  kubeadmConfigPatches:
-  - |
-    kind: InitConfiguration
-    nodeRegistration:
-      kubeletExtraArgs:
-        node-labels: "ingress-ready=true"
-  extraPortMappings:
-  - containerPort: 80
-    hostPort: {selected_http_port}
-  - containerPort: 443
-    hostPort: {selected_https_port}
-  - containerPort: 30000
-    hostPort: {selected_nodeport}
-  - containerPort: 30001
-    hostPort: {selected_dashboard_port}
-```
-
-**Configuration Features**:
-- **Single Node**: Control-plane only for development
-- **Ingress Ready**: Labels node for ingress controller
-- **Port Mapping**: Maps container ports to selected host ports
-- **Dynamic Configuration**: Uses user-selected or auto-detected ports
-
-##### Cluster Creation Flow
-1. **Existence Check**: Verify cluster doesn't already exist
-2. **Port Selection**: Execute port configuration logic
-3. **Config Generation**: Create Kind configuration file
-4. **Cluster Creation**: Execute `kind create cluster`
-5. **Verification**: Confirm cluster accessibility
-6. **State Update**: Mark cluster as ready for subsequent stages
-
-**Error Conditions**:
-- Port conflicts during creation
-- Kind installation failures
-- Cluster startup timeouts
-- Network connectivity issues
-
-### 6.4 DashboardStage
-
-**Purpose**: Installs Kubernetes Dashboard with admin access and custom port configuration.
-
-#### Installation Components
-
-##### Dashboard Deployment
-- **Source**: Official Kubernetes Dashboard v2.7.0
-- **Method**: Direct YAML application from GitHub
-- **URL**: `https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml`
-- **Namespace**: `kubernetes-dashboard`
-
-##### Admin Service Account Creation
-```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: admin-user
-  namespace: kubernetes-dashboard
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: admin-user
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-- kind: ServiceAccount
-  name: admin-user
-  namespace: kubernetes-dashboard
-```
-
-**Purpose**: Creates service account with full cluster administration privileges.
-
-##### NodePort Service Configuration
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: kubernetes-dashboard-nodeport
-  namespace: kubernetes-dashboard
-spec:
-  type: NodePort
-  ports:
-  - port: 443
-    targetPort: 8443
-    nodePort: {selected_dashboard_port}
-    protocol: TCP
-  selector:
-    k8s-app: kubernetes-dashboard
-```
-
-**Features**:
-- **External Access**: Exposes dashboard on host port
-- **HTTPS Only**: Maintains security with TLS
-- **Custom Port**: Uses user-selected or auto-detected port
-
-#### Token Management
-
-##### `_get_admin_token() -> str`
-**Purpose**: Generates long-lived authentication token for dashboard access.
-
-**Primary Method** (Kubernetes 1.24+):
 ```bash
+# 1. Complete foundation setup with intelligent port management
+python scripts/install-k8s-keeper.py --allow-root --auto-ports
+
+# 2. Verify installation components
+kubectl get pods --all-namespaces
+kubectl get secretstores,externalsecrets -n keeper-demo
+
+# 3. Access dashboard and get token
+echo "Dashboard: https://localhost:$(kubectl get service kubernetes-dashboard-nodeport -n kubernetes-dashboard -o jsonpath='{.spec.ports[0].nodePort}')"
 kubectl create token admin-user -n kubernetes-dashboard --duration=8760h
+
+# 4. Configure real Keeper secrets
+python scripts/manage-secrets.py --list-records
+python scripts/manage-secrets.py --create
+
+# 5. Setup monitoring and security
+python scripts/k8s-devops-automation.py --setup-monitoring
+python scripts/k8s-devops-automation.py --setup-security
+
+# 6. Setup backup system
+python scripts/k8s-devops-automation.py --setup-backup
 ```
 
-**Fallback Method** (Older Kubernetes):
+### Development Workflow
+
 ```bash
-kubectl get secret -n kubernetes-dashboard -o jsonpath='{.items[?(@.metadata.annotations.kubernetes\.io/service-account\.name=="admin-user")].data.token}' | base64 -d
+# 1. Setup development environment
+python scripts/install-k8s-keeper.py --allow-root --dev-only --interactive-ports
+
+# 2. Create development secrets
+python scripts/manage-secrets.py --create --namespace dev
+
+# 3. Deploy development application
+python scripts/k8s-devops-automation.py --deploy --namespace dev
+
+# 4. Monitor development environment
+python scripts/manage-secrets.py --status --watch
+python scripts/k8s-devops-automation.py --cluster-status
 ```
 
-**Token Duration**: 8760 hours (1 year) for development convenience.
+### Production Workflow
 
-#### Installation Flow
-1. **Skip Check**: Honor `--skip-dashboard` flag
-2. **Existence Check**: Verify dashboard not already installed
-3. **Dashboard Installation**: Apply official YAML manifests
-4. **Readiness Wait**: Wait for deployment to become available
-5. **Service Account**: Create admin user with cluster privileges
-6. **NodePort Service**: Create external access service
-7. **Token Generation**: Generate and store access token
-8. **State Persistence**: Save token for post-installation display
-
-### 6.5 ExternalSecretsStage
-
-**Purpose**: Installs External Secrets Operator with advanced CRD validation and recovery mechanisms.
-
-#### Advanced CRD Management
-
-##### `_check_crds_ready() -> bool`
-**Purpose**: Validates CRDs are properly installed and established.
-**CRDs Checked**:
-- `secretstores.external-secrets.io`
-- `externalsecrets.external-secrets.io`
-- `clustersecretstores.external-secrets.io`
-
-**Validation Criteria**: CRD must show "Established" status in kubectl output.
-
-##### `_wait_for_crds(timeout_seconds: int = 150) -> bool`
-**Purpose**: Advanced CRD waiting with recovery mechanisms.
-
-**Features**:
-- **Progress Tracking**: Counts ready vs missing CRDs
-- **Status Reporting**: Logs progress every 30 seconds
-- **Recovery Mechanism**: Attempts controller restart at 90 seconds
-- **Manual Validation**: Falls back to functional testing if status fails
-
-##### `_force_crd_refresh()`
-**Purpose**: Attempts to fix CRD establishment issues.
-**Method**: Restarts External Secrets controller deployments:
-- `deployment/external-secrets`
-- `deployment/external-secrets-cert-controller`
-
-##### `_manual_crd_validation() -> bool`
-**Purpose**: Functional validation when status checks fail.
-
-**Validation Tests**:
-1. **API Resource Check**: Verify Kubernetes API recognizes External Secrets
-2. **SecretStore Dry-Run**: Test SecretStore creation capability
-3. **ExternalSecret Dry-Run**: Test ExternalSecret creation capability
-4. **Resource Listing**: Verify ability to list all External Secrets resources
-
-**Fallback Logic**: Proceeds with installation if CRDs are functionally ready despite status.
-
-#### Installation Process
-
-##### Helm Chart Installation
 ```bash
-helm repo add external-secrets https://charts.external-secrets.io
-helm repo update
-helm install external-secrets external-secrets/external-secrets \
-    -n external-secrets-system \
-    --create-namespace \
-    --wait \
-    --timeout=5m
+# 1. Setup production cluster with security focus
+python scripts/install-k8s-keeper.py --allow-root --production-only --auto-ports
+
+# 2. Import production secrets using templates
+python scripts/advanced-secrets-manager.py --template postgres --record "PROD_DB_123" --name "postgres-prod" --namespace "production"
+python scripts/advanced-secrets-manager.py --template docker-registry --record "DOCKER_REG_456" --name "registry-auth" --namespace "production"
+
+# 3. Setup comprehensive monitoring and security
+python scripts/k8s-devops-automation.py --setup-monitoring
+python scripts/k8s-devops-automation.py --setup-security
+python scripts/k8s-devops-automation.py --setup-backup
+
+# 4. Deploy production application with full configuration
+python scripts/k8s-devops-automation.py --deploy --namespace "production"
+
+# 5. Setup CI/CD pipeline
+python scripts/k8s-devops-automation.py --setup-cicd jenkins
+
+# 6. Configure security policies and compliance
+python scripts/advanced-secrets-manager.py --rotation-policy "30d" --namespace "production"
+python scripts/k8s-devops-automation.py --security-scan --namespace "production"
+python scripts/k8s-devops-automation.py --compliance-report
+
+# 7. Setup automated backup schedule
+python scripts/k8s-devops-automation.py --create-backup "production-initial"
 ```
 
-**Features**:
-- **Automatic Namespace**: Creates namespace if not exists
-- **Wait for Ready**: Blocks until all components are ready
-- **Timeout Protection**: Fails after 5 minutes if not ready
+### Multi-Environment Workflow
 
-##### Corruption Recovery System
+```bash
+# Setup environments
+for env in dev staging prod; do
+  python scripts/install-k8s-keeper.py --allow-root --resume 06 --namespace $env
+  python scripts/manage-secrets.py --deploy --record "APP_${env^^}_123" --name "app-secrets" --namespace $env
+  python scripts/k8s-devops-automation.py --deploy --namespace $env
+done
 
-##### `_complete_external_secrets_cleanup()`
-**Purpose**: Complete removal of corrupted External Secrets installation.
-
-**Cleanup Process**:
-1. **Helm Removal**: Uninstall Helm release
-2. **Namespace Deletion**: Remove entire namespace and all resources
-3. **Namespace Wait**: Wait for complete namespace deletion
-4. **CRD Cleanup**: Manually remove all External Secrets CRDs
-5. **Stabilization**: Wait for cleanup to complete
-
-**CRDs Removed**:
-- `secretstores.external-secrets.io`
-- `externalsecrets.external-secrets.io`
-- `clustersecretstores.external-secrets.io`
-- `clusterexternalsecrets.external-secrets.io`
-- `pushsecrets.external-secrets.io`
-
-#### Diagnostic System
-
-##### `_show_diagnostics()`
-**Purpose**: Comprehensive troubleshooting information display.
-
-**Diagnostic Checks**:
-1. **Namespace Status**: Verify namespace exists
-2. **Helm Release**: Confirm Helm installation
-3. **Pod Status**: Show controller pod states
-4. **CRD Status**: Individual CRD establishment status
-
-**Output Format**:
-- ✅ **Success Indicators**: Green checkmarks for working components
-- ❌ **Failure Indicators**: Red X marks for missing components
-- 📋 **Information Blocks**: Detailed status information
-
-#### Installation Flow
-1. **Skip Check**: Honor `dev_only` mode
-2. **Readiness Check**: Verify CRDs not already established
-3. **Corruption Detection**: Check for incomplete installations
-4. **Cleanup Decision**: Offer or perform automatic cleanup
-5. **Fresh Installation**: Install via Helm with full validation
-6. **CRD Validation**: Advanced CRD establishment verification
-7. **Recovery Attempts**: Try multiple recovery mechanisms
-8. **Functional Validation**: Fall back to functional testing
-9. **Status Reporting**: Comprehensive success/failure reporting
-
-### 6.6 KeeperIntegrationStage
-
-**Purpose**: Configures Keeper Secrets Manager integration with External Secrets Operator.
-
-#### CRD Validation
-
-##### `_verify_external_secrets_ready() -> bool`
-**Purpose**: Functional validation of External Secrets readiness.
-
-**Validation Strategy**:
-1. **Functional Tests (Primary)**:
-   - API resource recognition test
-   - Resource listing capability test
-   - Actual functionality verification
-
-2. **Status Check (Fallback)**:
-   - Traditional "Established" status check
-   - Non-blocking if functional tests pass
-
-**Design Philosophy**: Prioritizes functional capability over status indicators.
-
-#### Configuration Management
-
-##### KSM Configuration Sources
-
-###### `_generate_config_from_token(token: str) -> str`
-**Purpose**: Generates KSM configuration from Keeper one-time token.
-**Process**:
-1. Execute `ksm init k8s '{token}'`
-2. Parse kubectl secret YAML output
-3. Extract base64-encoded configuration
-4. Return configuration for Kubernetes secret creation
-
-###### `_load_config_from_file(config_file: str) -> str`
-**Purpose**: Loads existing KSM configuration from file.
-**Process**:
-1. Read JSON configuration file
-2. Base64 encode configuration content
-3. Return encoded configuration
-
-###### `_interactive_config_setup() -> Optional[str]`
-**Purpose**: Interactive configuration wizard.
-
-**User Options**:
-1. **One-time Token**: Generate config from Keeper token
-2. **Existing Config**: Load from existing file
-3. **Skip Configuration**: Create template only
-
-#### Kubernetes Secret Creation
-
-##### `_create_config_secret(config_data: str) -> None`
-**Purpose**: Creates Kubernetes secret containing KSM configuration.
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: keeper-config-secret
-  namespace: keeper-demo
-type: Opaque
-data:
-  config: {base64_encoded_config}
+# Environment-specific monitoring
+python scripts/k8s-devops-automation.py --cluster-status
+python scripts/manage-secrets.py --status
 ```
-
-#### Folder Discovery System
-
-##### `_discover_folders() -> List[Dict[str, str]]`
-**Purpose**: Discovers available Keeper folders for SecretStore configuration.
-
-**Process**:
-1. **Config Extraction**: Get KSM config from Kubernetes secret
-2. **Temporary File**: Create temporary config file
-3. **Environment Setup**: Set KSM_CONFIG_FILE environment variable
-4. **Folder Listing**: Execute `ksm folder list`
-5. **Output Parsing**: Parse folder list output
-6. **Cleanup**: Remove temporary files
-
-**Output Format**:
-```python
-[
-    {"id": "folder_uid", "title": "Folder Name"},
-    ...
-]
-```
-
-##### `_select_folder(folders: List[Dict[str, str]]) -> Optional[str]`
-**Purpose**: Interactive folder selection for SecretStore scope.
-
-**Selection Options**:
-1. **Available Folders**: Show discovered folders with descriptions
-2. **Manual Entry**: Allow manual folder ID entry
-3. **Root Level**: No folder restriction (vault-wide access)
-
-#### SecretStore Creation
-
-##### `_create_secretstore(folder_id: Optional[str]) -> None`
-**Purpose**: Creates Keeper SecretStore resource.
-
-```yaml
-apiVersion: external-secrets.io/v1
-kind: SecretStore
-metadata:
-  name: keeper-secretstore
-  namespace: keeper-demo
-spec:
-  provider:
-    keepersecurity:
-      authRef:
-        name: keeper-config-secret
-        key: config
-      folderID: "{folder_id}"  # Optional
-```
-
-**Features**:
-- **Authentication**: References Kubernetes secret containing KSM config
-- **Folder Scoping**: Optional folder restriction for security
-- **Namespace Isolation**: Created in dedicated keeper-demo namespace
-
-#### Example ExternalSecret
-
-##### `_create_example_externalsecret() -> None`
-**Purpose**: Creates template ExternalSecret for user customization.
-
-```yaml
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
-metadata:
-  name: keeper-example-secret
-  namespace: keeper-demo
-spec:
-  refreshInterval: 30s
-  secretStoreRef:
-    kind: SecretStore
-    name: keeper-secretstore
-  target:
-    name: keeper-synced-secret
-    creationPolicy: Owner
-  data:
-  - secretKey: example-key
-    remoteRef:
-      key: "PLACEHOLDER_RECORD_UID"
-      property: "login"
-```
-
-**Features**:
-- **Placeholder UID**: Users must replace with actual record UIDs
-- **Documentation**: Inline comments with configuration instructions
-- **Refresh Interval**: 30-second sync frequency
-- **Target Secret**: Creates `keeper-synced-secret` in same namespace
-
-#### Integration Flow
-1. **CRD Verification**: Ensure External Secrets is functional
-2. **Namespace Creation**: Create `keeper-demo` namespace
-3. **Configuration Acquisition**: Get KSM config via interactive/automated means
-4. **Secret Creation**: Store KSM config in Kubernetes secret
-5. **Folder Discovery**: Enumerate available Keeper folders
-6. **Folder Selection**: Interactive or automated folder selection
-7. **SecretStore Creation**: Create External Secrets SecretStore
-8. **Example Creation**: Create template ExternalSecret for user customization
-
-### 6.7 ValidationStage
-
-**Purpose**: Comprehensive validation of entire installation.
-
-#### Validation Checks
-
-##### Cluster Accessibility
-- **Test**: `kubectl cluster-info`
-- **Purpose**: Verify Kubernetes cluster is responsive
-- **Failure Impact**: Installation marked as failed
-
-##### Dashboard Validation (Conditional)
-- **Condition**: Not skipped via `--skip-dashboard`
-- **Test**: Check `kubernetes-dashboard` deployment exists
-- **Purpose**: Verify dashboard installation success
-- **Failure Impact**: Warning only
-
-##### External Secrets Validation (Conditional)
-- **Condition**: Not in `dev_only` mode
-- **Test**: Check `external-secrets` deployment exists
-- **Purpose**: Verify External Secrets Operator installation
-- **Failure Impact**: Warning only
-
-##### Keeper Integration Validation (Optional)
-- **Test**: Check `keeper-secretstore` resource exists
-- **Purpose**: Verify Keeper integration configuration
-- **Failure Impact**: Informational only
-
-#### Validation Flow
-1. **Critical Checks**: Cluster accessibility (failure blocks completion)
-2. **Component Checks**: Individual component validation (warnings only)
-3. **Integration Checks**: End-to-end integration validation (informational)
-4. **Summary Report**: Comprehensive status report
 
 ---
 
-## 7. Uninstall System
+## 🔍 Comprehensive Troubleshooting & Diagnostics
 
-### 7.1 Uninstall Architecture
+### Installation Issues
 
-#### Granular Uninstall Options
-- **Complete Removal**: Everything including tools and cluster
-- **Cluster Only**: Kubernetes cluster and associated resources
-- **Dashboard Only**: Just the Kubernetes dashboard
-- **Tools Only**: Installed command-line tools
-- **External Secrets Only**: Corrupted External Secrets cleanup
+#### CRD Establishment Problems
+**Symptoms**: External Secrets CRDs exist but show "Not Established"
+**Diagnosis**:
+```bash
+# Check CRD status
+kubectl get crd | grep external-secrets
 
-#### Interactive Uninstall Menu
-```python
-def interactive_uninstall_menu():
-    """Interactive uninstall menu with numbered options"""
-    1) Everything (cluster + tools + dashboard + examples)
-    2) Just the Kubernetes cluster (includes dashboard)
-    3) Just the dashboard
-    4) Just installed tools (kubectl, kind, helm, go)
-    5) Cancel
+# Check API resource recognition
+kubectl api-resources | grep external-secrets
+
+# Test functional capability
+kubectl get secretstores --all-namespaces
 ```
 
-### 7.2 Uninstall Functions
+**Recovery**:
+```bash
+# Method 1: Restart External Secrets controllers
+kubectl rollout restart deployment/external-secrets -n external-secrets-system
+kubectl rollout restart deployment/external-secrets-cert-controller -n external-secrets-system
 
-#### `uninstall_all()`
-**Purpose**: Complete system removal.
+# Method 2: Complete cleanup and reinstall
+python scripts/install-k8s-keeper.py --clean-external-secrets --allow-root
+python scripts/install-k8s-keeper.py --resume 05 --allow-root
 
-**Removal Process**:
-1. **Kubernetes Resources**: Remove all namespaces and resources
-2. **Cluster Removal**: Delete Kind cluster
-3. **Tool Removal**: Remove all installed command-line tools
-4. **Docker Cleanup**: Remove Kind-related Docker resources
-5. **File Cleanup**: Remove work directories and state files
+# Method 3: Manual CRD validation
+kubectl delete crd secretstores.external-secrets.io externalsecrets.external-secrets.io clustersecretstores.external-secrets.io
+python scripts/install-k8s-keeper.py --resume 05 --allow-root
+```
 
-#### `uninstall_cluster()`
-**Purpose**: Remove Kubernetes cluster while preserving tools.
+#### Port Conflicts & Network Issues
+**Symptoms**: Services fail to start due to port conflicts
+**Diagnosis**:
+```bash
+# Check port usage
+netstat -tulpn | grep :8080
+ss -tulpn | grep :8080
 
-**Process**:
-1. **Cluster Deletion**: `kind delete cluster --name keeper-cluster`
-2. **Context Cleanup**: Remove kubectl contexts and cluster references
-3. **Error Suppression**: Ignore missing context errors
+# Check Kind port mappings
+docker ps | grep kind
 
-#### `uninstall_tools()`
-**Purpose**: Remove all installed command-line tools.
+# Verify cluster accessibility
+kubectl cluster-info
+```
 
-**Tools Removed**:
-- **kubectl**: `/usr/local/bin/kubectl`
-- **kind**: `/usr/local/bin/kind`
-- **helm**: `/usr/local/bin/helm`
-- **go**: `/usr/local/go` directory
-- **ksm**: Python package via pip3
+**Recovery**:
+```bash
+# Method 1: Use automatic port selection
+python scripts/install-k8s-keeper.py --allow-root --auto-ports
 
-**Features**:
-- **Existence Check**: Only remove if tools exist
-- **Permission Handling**: Use sudo for non-root removals
-- **PATH Cleanup**: Remove Go PATH modifications from `.bashrc`
-- **Error Handling**: Continue on individual tool removal failures
+# Method 2: Specify custom ports
+python scripts/install-k8s-keeper.py --allow-root --http-port 8090 --dashboard-port 30005
 
-#### `clean_external_secrets_only()`
-**Purpose**: Specialized cleanup for corrupted External Secrets installations.
+# Method 3: Interactive port analysis
+python scripts/install-k8s-keeper.py --allow-root --interactive-ports
 
-**Process**:
-1. **Helm Removal**: Uninstall external-secrets release
-2. **Namespace Deletion**: Remove external-secrets-system namespace
-3. **Namespace Wait**: Wait for complete namespace deletion
-4. **CRD Cleanup**: Manually remove all External Secrets CRDs
-5. **User Guidance**: Provide next steps for re-installation
+# Method 4: Complete cluster recreation
+python scripts/install-k8s-keeper.py --uninstall-cluster --allow-root
+python scripts/install-k8s-keeper.py --resume 03 --allow-root
+```
+
+#### Permission & Authentication Issues
+**Symptoms**: Docker or kubectl permission denied
+**Diagnosis**:
+```bash
+# Check user groups
+groups $USER
+
+# Check Docker daemon
+systemctl status docker
+docker info
+
+# Check kubectl configuration
+kubectl config current-context
+kubectl auth can-i '*' '*'
+```
+
+**Recovery**:
+```bash
+# Method 1: Add user to docker group
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Method 2: Use root installation
+python scripts/install-k8s-keeper.py --allow-root
+
+# Method 3: Fix kubectl configuration
+kubectl config use-context kind-keeper-cluster
+```
+
+### Secrets Management Issues
+
+#### Secret Sync Errors
+**Symptoms**: ExternalSecret shows "SecretSyncedError" status
+**Diagnosis**:
+```bash
+# Check SecretStore status
+kubectl describe secretstore keeper-secretstore -n keeper-demo
+
+# Verify KSM configuration
+kubectl get secret keeper-config-secret -n keeper-demo -o yaml
+
+# Test KSM CLI connectivity
+ksm secret list
+
+# Check External Secrets logs
+kubectl logs -n external-secrets-system deployment/external-secrets --tail=50
+```
+
+**Recovery**:
+```bash
+# Method 1: Verify record UID and properties
+python scripts/manage-secrets.py --list-records
+ksm secret get "YOUR_RECORD_UID"
+
+# Method 2: Recreate ExternalSecret
+kubectl delete externalsecret keeper-example-secret -n keeper-demo
+python scripts/manage-secrets.py --deploy --record "VALID_UID" --name "test-secret"
+
+# Method 3: Reconfigure KSM integration
+python scripts/install-k8s-keeper.py --resume 06 --allow-root --ksm-token "NEW_TOKEN"
+```
+
+#### Record Not Found Errors
+**Symptoms**: "Record not found in Keeper vault"
+**Diagnosis**:
+```bash
+# List available records
+python scripts/manage-secrets.py --list-records
+
+# Search for specific records
+python scripts/manage-secrets.py --search "database"
+
+# Test direct KSM access
+ksm secret list
+ksm secret get "SUSPECTED_UID"
+```
+
+**Recovery**:
+```bash
+# Method 1: Use correct record UID
+python scripts/manage-secrets.py --list-records
+python scripts/manage-secrets.py --deploy --record "CORRECT_UID" --name "secret-name"
+
+# Method 2: Verify KSM configuration and permissions
+kubectl get secret keeper-config-secret -n keeper-demo -o jsonpath='{.data.config}' | base64 -d
+
+# Method 3: Reconfigure with correct Keeper credentials
+python scripts/install-k8s-keeper.py --resume 06 --allow-root --ksm-config "/path/to/correct/config.json"
+```
+
+### Application Deployment Issues
+
+#### Deployment Failures
+**Symptoms**: Pods stuck in Pending, CrashLoopBackOff, or ImagePullBackOff
+**Diagnosis**:
+```bash
+# Check pod status and events
+kubectl get pods -o wide
+kubectl describe pod POD_NAME
+
+# Check deployment status
+kubectl get deployments
+kubectl describe deployment DEPLOYMENT_NAME
+
+# Check resource availability
+kubectl describe nodes
+kubectl top nodes
+```
+
+**Recovery**:
+```bash
+# Method 1: Fix resource constraints
+python scripts/k8s-devops-automation.py --scale DEPLOYMENT:NAMESPACE:1
+
+# Method 2: Update deployment configuration
+python scripts/k8s-devops-automation.py --update DEPLOYMENT:NAMESPACE:IMAGE:TAG
+
+# Method 3: Rollback to working version
+python scripts/k8s-devops-automation.py --rollback DEPLOYMENT:NAMESPACE
+
+# Method 4: Complete redeployment
+python scripts/k8s-devops-automation.py --delete-deployment DEPLOYMENT:NAMESPACE
+python scripts/k8s-devops-automation.py --deploy
+```
+
+#### Service Connectivity Issues
+**Symptoms**: Cannot access services or dashboard
+**Diagnosis**:
+```bash
+# Check service status
+kubectl get services -o wide
+kubectl describe service SERVICE_NAME
+
+# Check endpoints
+kubectl get endpoints
+
+# Check NodePort accessibility
+kubectl get service kubernetes-dashboard-nodeport -n kubernetes-dashboard
+```
+
+**Recovery**:
+```bash
+# Method 1: Port forward for temporary access
+kubectl port-forward service/kubernetes-dashboard 8443:443 -n kubernetes-dashboard
+
+# Method 2: Recreate NodePort services
+python scripts/install-k8s-keeper.py --resume 04 --allow-root
+
+# Method 3: Check firewall and network configuration
+sudo ufw status
+iptables -L -n
+```
+
+### Monitoring & Backup Issues
+
+#### Monitoring Stack Problems
+**Symptoms**: Prometheus, Grafana, or Alertmanager not accessible
+**Diagnosis**:
+```bash
+# Check monitoring pods
+kubectl get pods -n monitoring
+
+# Check services and endpoints
+kubectl get services -n monitoring
+kubectl get endpoints -n monitoring
+
+# Check persistent volumes
+kubectl get pv,pvc -n monitoring
+```
+
+**Recovery**:
+```bash
+# Method 1: Restart monitoring stack
+python scripts/k8s-devops-automation.py --setup-monitoring
+
+# Method 2: Check specific component logs
+kubectl logs -n monitoring deployment/prometheus-server
+kubectl logs -n monitoring deployment/grafana
+
+# Method 3: Access via port forwarding
+kubectl port-forward -n monitoring service/prometheus-server 9090:80
+kubectl port-forward -n monitoring service/grafana 3000:80
+```
+
+#### Backup System Issues
+**Symptoms**: Velero backups failing or not completing
+**Diagnosis**:
+```bash
+# Check Velero status
+kubectl get backups -n velero
+kubectl get restores -n velero
+
+# Check Velero logs
+kubectl logs -n velero deployment/velero
+
+# Check backup storage
+python scripts/k8s-devops-automation.py --list-backups
+```
+
+**Recovery**:
+```bash
+# Method 1: Recreate backup system
+python scripts/k8s-devops-automation.py --setup-backup
+
+# Method 2: Manual backup creation
+python scripts/k8s-devops-automation.py --create-backup "manual-$(date +%Y%m%d)"
+
+# Method 3: Check storage configuration
+kubectl describe backupstoragelocation default -n velero
+```
 
 ---
 
-## 8. Main Installer Class
+## 📚 Advanced Features & API Extensions
 
-### 8.1 KubernetesKeeperInstaller
+### Intelligent Port Management System
 
-#### Class Architecture
+The suite includes a sophisticated port management system that provides conflict-free service exposure:
+
+#### Port Analysis & Selection
+- **Real-time Scanning**: Automated port availability detection across multiple ranges
+- **Conflict Resolution**: Intelligent alternative port suggestions with user confirmation
+- **Service-aware Assignment**: Context-aware port assignment based on service type
+- **Range Optimization**: Optimized scanning of common service port ranges
+
+#### Port Management Methods
+
+##### 1. Automatic Selection (`--auto-ports`)
+```bash
+python scripts/install-k8s-keeper.py --allow-root --auto-ports
+```
+- Scans system for optimal port availability
+- Uses intelligent fallback algorithms
+- Provides conflict-free port assignments
+- Minimizes user intervention
+
+##### 2. Interactive Selection (`--interactive-ports`)
+```bash
+python scripts/install-k8s-keeper.py --allow-root --interactive-ports
+```
+- Comprehensive port analysis dashboard
+- User-guided port selection with recommendations
+- Real-time conflict detection and warnings
+- Educational port usage information
+
+##### 3. Custom Port Assignment
+```bash
+python scripts/install-k8s-keeper.py --allow-root --http-port 8090 --dashboard-port 30005
+```
+- Precise port control for specific requirements
+- Validation and conflict detection
+- Override capabilities with user confirmation
+
+#### Port Analysis Categories
+- **Web Services (8000-8100)**: HTTP alternatives and reverse proxies
+- **Development (3000-4100)**: Framework defaults and development servers
+- **Kubernetes NodePort (30000-32767)**: Service exposure range
+- **System Services**: Database, cache, and infrastructure service ports
+
+### Advanced State Management & Resume System
+
+#### State Persistence Architecture
+- **JSON-based State Storage**: Comprehensive installation state tracking
+- **Stage-based Checkpoints**: Granular resume capability from any installation stage
+- **Configuration Preservation**: User choices and port selections preserved across resume
+- **Error Context Preservation**: Detailed error information for troubleshooting
+
+#### Resume Capabilities
+```bash
+# Resume from specific stage after failure
+python scripts/install-k8s-keeper.py --resume 05 --allow-root
+
+# Skip problematic stages
+python scripts/install-k8s-keeper.py --allow-root --skip-stages "04,06"
+
+# Resume with different configuration
+python scripts/install-k8s-keeper.py --resume 03 --allow-root --interactive-ports
+
+# Debug resume with state inspection
+python scripts/install-k8s-keeper.py --resume 05 --allow-root --debug --work-dir /custom/path
+```
+
+#### State Management Features
+- **Atomic Operations**: Each stage completion atomically updates state
+- **Rollback Safety**: Safe rollback to previous successful state
+- **Configuration Versioning**: Track configuration changes across resume attempts
+- **Progress Tracking**: Visual progress indication with stage completion status
+
+### Comprehensive Error Recovery & Diagnostics
+
+#### Multi-level Error Recovery
+1. **Automatic Recovery**: Self-healing mechanisms for common issues
+2. **Guided Recovery**: Step-by-step user guidance for complex issues
+3. **Manual Recovery**: Advanced recovery procedures for edge cases
+
+#### Advanced Diagnostic Systems
+- **Component Health Checking**: Real-time status of all system components
+- **Resource Validation**: Kubernetes resource existence and configuration validation
+- **Network Connectivity Testing**: Port accessibility and service reachability verification
+- **Integration Testing**: End-to-end integration validation
+
+#### Recovery Command Examples
+```bash
+# Comprehensive diagnostic run
+python scripts/install-k8s-keeper.py --allow-root --debug --debug-output full-diagnostic.log
+
+# Specific component cleanup and recovery
+python scripts/install-k8s-keeper.py --clean-external-secrets --allow-root
+python scripts/install-k8s-keeper.py --resume 05 --allow-root
+
+# Complete system recovery
+python scripts/install-k8s-keeper.py --uninstall-all --allow-root
+python scripts/install-k8s-keeper.py --allow-root --auto-ports
+
+# Network troubleshooting
+python scripts/install-k8s-keeper.py --allow-root --interactive-ports --debug
+```
+
+---
+
+## 🛡️ Security Architecture & Compliance
+
+### Security-First Design Philosophy
+- **Principle of Least Privilege**: Minimal required permissions for all operations
+- **Defense in Depth**: Multiple security layers across all components
+- **Zero Trust Network**: Assume breach security model implementation
+- **Compliance by Design**: Built-in compliance with security frameworks
+
+### Security Stack Components
+
+#### Runtime Security (Falco)
+- **Behavioral Monitoring**: Real-time detection of suspicious container behavior
+- **Rule Engine**: Customizable security rules for application-specific threats
+- **Alert Integration**: Integration with monitoring and notification systems
+- **Forensic Capabilities**: Detailed security event logging and analysis
+
+#### Policy Enforcement (OPA Gatekeeper)
+- **Admission Control**: Kubernetes admission controller for policy enforcement
+- **Custom Policies**: Organization-specific security and compliance policies
+- **Constraint Templates**: Reusable policy templates for common scenarios
+- **Violation Reporting**: Comprehensive policy violation reporting
+
+#### Network Security
+- **Micro-segmentation**: Network policies for application isolation
+- **Traffic Control**: Ingress and egress traffic filtering
+- **Service Mesh Ready**: Istio integration capabilities
+- **Zero Trust Networking**: Identity-based network access control
+
+#### Vulnerability Management
+- **Image Scanning**: Container image vulnerability assessment
+- **Dependency Analysis**: Security analysis of application dependencies
+- **Compliance Scanning**: CIS Kubernetes Benchmark compliance checking
+- **Continuous Monitoring**: Ongoing security posture assessment
+
+### Compliance Framework Support
+- **SOC 2**: Service Organization Control 2 compliance
+- **PCI DSS**: Payment Card Industry Data Security Standard
+- **HIPAA**: Health Insurance Portability and Accountability Act
+- **CIS Benchmarks**: Center for Internet Security Kubernetes Benchmarks
+
+---
+
+## 🚀 API Reference for Unified Integration
+
+### Core API Classes & Methods
+
+#### Installation API (`KubernetesKeeperInstaller`)
 ```python
 class KubernetesKeeperInstaller:
     def __init__(self, config: BuildConfig)
+    def run(self) -> bool
     def _load_state(self) -> BuildState
     def _save_state(self) -> None
-    def run(self) -> bool
     def _show_usage_info(self) -> None
+    
+    # Stage management
+    def execute_stage(self, stage_name: str) -> StageResult
+    def resume_from_stage(self, stage_id: str) -> bool
+    def skip_stages(self, stage_list: List[str]) -> None
 ```
 
-#### State Management
-
-##### `_load_state() -> BuildState`
-**Purpose**: Loads persistent state from JSON file.
-**Location**: `{work_dir}/state.json`
-**Fallback**: Creates new BuildState if file doesn't exist or is corrupted.
-
-##### `_save_state() -> None`
-**Purpose**: Persists current state to JSON file.
-**Timing**: Called after each successful stage completion.
-**Error Handling**: Logs errors but doesn't fail installation.
-
-#### Stage Orchestration
-
-##### Stage Definition
+#### Secrets Management API (`SecretManager`)
 ```python
-self.stages = [
-    ("01", PrerequisitesStage("01", "Prerequisites Check", config, self.state)),
-    ("02", ToolsInstallationStage("02", "Tools Installation", config, self.state)),
-    ("03", ClusterSetupStage("03", "Cluster Setup", config, self.state)),
-    ("04", DashboardStage("04", "Kubernetes Dashboard", config, self.state)),
-    ("05", ExternalSecretsStage("05", "External Secrets Operator", config, self.state)),
-    ("06", KeeperIntegrationStage("06", "Keeper Integration", config, self.state)),
-    ("07", ValidationStage("07", "Validation", config, self.state)),
-]
+class SecretManager:
+    def create_external_secret(self, config: SecretConfig) -> OperationResult
+    def list_secrets(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]
+    def delete_secret(self, secret_name: str, namespace: str) -> OperationResult
+    def sync_secret(self, secret_name: str, namespace: str) -> OperationResult
+    def get_secret_status(self, secret_name: str, namespace: str) -> Dict[str, Any]
+    def _wait_for_secret_sync(self, secret_name: str, namespace: str) -> bool
 ```
 
-##### `run() -> bool`
-**Purpose**: Main installation orchestration.
-
-**Execution Flow**:
-1. **Initialization**: Log installation start and work directory
-2. **Resume Logic**: Determine starting stage based on `--resume` flag
-3. **Stage Execution**: Execute stages sequentially
-4. **State Persistence**: Save state after each successful stage
-5. **Failure Handling**: Stop on first failure and provide resume guidance
-6. **Success Handling**: Display usage information on completion
-
-##### Resume Capability
-- **Stage Identification**: Stages identified by numeric IDs ("01" - "07")
-- **Starting Point**: Installation can resume from any stage
-- **State Preservation**: Previous stage results and user choices preserved
-- **Command Generation**: Automatic resume command generation on failure
-
-#### Post-Installation Guidance
-
-##### `_show_usage_info()`
-**Purpose**: Comprehensive post-installation information display.
-
-**Information Provided**:
-1. **Dashboard Access**: URL, token, and usage instructions
-2. **Keeper Configuration**: Steps to configure real secrets
-3. **Cluster Access**: HTTP/HTTPS endpoints with selected ports
-4. **Useful Commands**: Common kubectl commands for management
-5. **File Locations**: Log and state file locations
-
-**Dynamic Content**:
-- **Port Information**: Shows actual selected ports
-- **Token Display**: Shows generated dashboard token
-- **Conditional Sections**: Based on installation mode and components
-
----
-
-## 9. Command Line Interface
-
-### 9.1 Argument Parser Configuration
-
-#### Build Options
-- `--allow-root`: Permit execution as root user
-- `--production-only`: Install only production components
-- `--dev-only`: Install only development components
-- `--skip-dashboard`: Skip Kubernetes Dashboard installation
-
-#### Keeper Options
-- `--ksm-token`: Keeper Secrets Manager one-time token
-- `--ksm-config`: Path to existing KSM configuration file
-
-#### Port Configuration
-- `--auto-ports`: Automatically select available ports
-- `--interactive-ports`: Interactive port selection interface
-- `--http-port`: Custom HTTP port
-- `--https-port`: Custom HTTPS port
-- `--dashboard-port`: Custom dashboard port
-- `--nodeport`: Custom NodePort base
-
-#### Build Control
-- `--resume`: Resume from specific stage (01-07)
-- `--skip-stages`: Skip specified stages (comma-separated)
-- `--work-dir`: Custom work directory
-- `--debug`: Enable debug mode
-- `--debug-output`: Debug output file
-- `--reconfigure`: Interactive reconfigure mode
-- `--allow-destructive`: Allow destructive operations
-
-#### Uninstall Options
-- `--uninstall`: Interactive uninstall menu
-- `--uninstall-all`: Remove everything
-- `--uninstall-cluster`: Remove only cluster
-- `--uninstall-tools`: Remove only tools
-- `--uninstall-dashboard`: Remove only dashboard
-- `--clean-external-secrets`: Clean corrupted External Secrets
-
-### 9.2 Argument Processing Logic
-
-#### Uninstall Priority
-- Uninstall operations processed before installation
-- Require root privileges or `--allow-root` flag
-- Specialized cleanup operations available
-
-#### Port Selection Logic
+#### Deployment Management API (`DeploymentManager`)
 ```python
-auto_port_selection = None
-if args.auto_ports:
-    auto_port_selection = True
-elif args.interactive_ports:
-    auto_port_selection = False
-# None triggers interactive prompt
+class DeploymentManager:
+    def create_deployment(self, config: DeploymentConfig) -> OperationResult
+    def list_deployments(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]
+    def scale_deployment(self, name: str, namespace: str, replicas: int) -> OperationResult
+    def update_deployment(self, name: str, namespace: str, image: str, tag: str) -> OperationResult
+    def rollback_deployment(self, name: str, namespace: str, revision: Optional[int] = None) -> OperationResult
+    def delete_deployment(self, name: str, namespace: str) -> OperationResult
+    def get_deployment_status(self, name: str, namespace: str) -> Dict[str, Any]
 ```
 
-#### Custom Port Processing
+#### Monitoring Management API (`MonitoringManager`)
 ```python
-custom_ports = {}
-if args.http_port:
-    custom_ports['http'] = args.http_port
-# ... additional port processing
+class MonitoringManager:
+    def setup_monitoring_stack(self, config: MonitoringConfig) -> OperationResult
+    def get_cluster_metrics(self) -> Dict[str, Any]
+    def get_application_health(self, namespace: Optional[str] = None) -> Dict[str, Any]
+    def create_custom_dashboard(self, name: str, queries: List[str]) -> OperationResult
+    def setup_alerts(self, rules: List[Dict[str, Any]]) -> OperationResult
+    def get_monitoring_status(self) -> Dict[str, Any]
+```
+
+#### Backup Management API (`BackupManager`)
+```python
+class BackupManager:
+    def setup_backup_system(self, config: BackupConfig) -> OperationResult
+    def create_backup(self, name: Optional[str] = None, namespaces: Optional[List[str]] = None) -> OperationResult
+    def list_backups(self) -> List[Dict[str, Any]]
+    def restore_backup(self, backup_name: str, namespaces: Optional[List[str]] = None) -> OperationResult
+    def delete_backup(self, backup_name: str) -> OperationResult
+    def get_backup_status(self, backup_name: str) -> Dict[str, Any]
+```
+
+#### Security Management API (`SecurityManager`)
+```python
+class SecurityManager:
+    def setup_security_tools(self) -> OperationResult
+    def scan_vulnerabilities(self, namespace: Optional[str] = None) -> Dict[str, Any]
+    def generate_compliance_report(self) -> Dict[str, Any]
+    def setup_network_policies(self, namespace: str) -> OperationResult
+    def configure_rbac(self, policies: List[Dict[str, Any]]) -> OperationResult
+```
+
+### Data Models & Return Types
+
+#### OperationResult
+```python
+@dataclass
+class OperationResult:
+    status: OperationStatus  # SUCCESS, FAILED, WARNING, PENDING, etc.
+    message: str            # Human-readable status message
+    data: Optional[Dict[str, Any]] = None    # Additional response data
+    error: Optional[str] = None              # Detailed error information
+    timestamp: datetime = field(default_factory=datetime.now)
+```
+
+#### OperationStatus Enum
+```python
+class OperationStatus(Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+    SYNCED = "synced"
+    ERROR = "error"
+    WARNING = "warning"
+    DEGRADED = "degraded"
+```
+
+### REST API Mapping for Unified Interface
+
+#### Installation Endpoints
+```
+POST /api/v1/install              # Start installation
+GET  /api/v1/install/status       # Get installation status
+POST /api/v1/install/resume       # Resume from stage
+DELETE /api/v1/install            # Uninstall components
+```
+
+#### Secrets Management Endpoints
+```
+GET    /api/v1/secrets                    # List secrets
+POST   /api/v1/secrets                    # Create secret
+GET    /api/v1/secrets/{name}             # Get secret details
+PUT    /api/v1/secrets/{name}             # Update secret
+DELETE /api/v1/secrets/{name}             # Delete secret
+GET    /api/v1/secrets/{name}/status      # Get sync status
+POST   /api/v1/secrets/{name}/sync        # Force sync
+```
+
+#### Deployment Management Endpoints
+```
+GET    /api/v1/deployments                # List deployments
+POST   /api/v1/deployments                # Create deployment
+GET    /api/v1/deployments/{name}         # Get deployment
+PUT    /api/v1/deployments/{name}         # Update deployment
+DELETE /api/v1/deployments/{name}         # Delete deployment
+POST   /api/v1/deployments/{name}/scale   # Scale deployment
+POST   /api/v1/deployments/{name}/rollback # Rollback deployment
+```
+
+#### Monitoring Endpoints
+```
+GET  /api/v1/monitoring/status     # Monitoring stack status
+POST /api/v1/monitoring/setup      # Setup monitoring
+GET  /api/v1/monitoring/metrics    # Get cluster metrics
+GET  /api/v1/monitoring/health     # Application health
+POST /api/v1/monitoring/dashboards # Create dashboard
+POST /api/v1/monitoring/alerts     # Configure alerts
+```
+
+#### Backup Endpoints
+```
+GET    /api/v1/backups           # List backups
+POST   /api/v1/backups           # Create backup
+GET    /api/v1/backups/{name}    # Get backup details
+DELETE /api/v1/backups/{name}    # Delete backup
+POST   /api/v1/backups/{name}/restore # Restore backup
+```
+
+#### Security Endpoints
+```
+GET  /api/v1/security/status          # Security stack status
+POST /api/v1/security/setup           # Setup security tools
+POST /api/v1/security/scan            # Run vulnerability scan
+GET  /api/v1/security/compliance      # Get compliance report
+POST /api/v1/security/policies        # Configure policies
 ```
 
 ---
 
-## 10. Error Handling & Recovery
+## 📖 Getting Started Examples
 
-### 10.1 Error Handling Philosophy
+### Beginner: Automated Setup
+```bash
+# Complete automated setup
+./quick-start.sh
 
-#### Graceful Degradation
-- **Non-critical failures**: Generate warnings but continue installation
-- **Critical failures**: Stop installation with clear error messages
-- **Recovery guidance**: Provide specific commands for issue resolution
+# Verify everything is working
+python scripts/manage-secrets.py --status
+python scripts/k8s-devops-automation.py --cluster-status
 
-#### Error Suppression System
-- **Expected failures**: Suppress errors for existence checks
-- **Diagnostic operations**: Suppress errors during troubleshooting
-- **Cleanup operations**: Suppress errors during uninstall
+# Create your first secret
+python scripts/manage-secrets.py --create
 
-### 10.2 Recovery Mechanisms
+# Access the dashboard
+echo "Dashboard: https://localhost:30001"
+kubectl create token admin-user -n kubernetes-dashboard --duration=8760h
+```
 
-#### State-based Recovery
-- **Resume capability**: Installation can be resumed from any stage
-- **State preservation**: User choices and configuration preserved
-- **Incremental progress**: Only failed stages need re-execution
+### Intermediate: Custom Environment
+```bash
+# Custom installation with monitoring and security
+python scripts/install-k8s-keeper.py --allow-root --auto-ports
+python scripts/k8s-devops-automation.py --setup-monitoring
+python scripts/k8s-devops-automation.py --setup-security
 
-#### Automatic Recovery
-- **Port conflicts**: Automatic alternative port selection
-- **Tool installation**: Multiple installation method attempts
-- **CRD issues**: Advanced validation and recovery mechanisms
+# Deploy application with secrets
+python scripts/manage-secrets.py --template postgres --record "DB_123" --name "app-db"
+python scripts/k8s-devops-automation.py --deploy
 
-#### Manual Recovery
-- **Cleanup commands**: Specific cleanup commands for various scenarios
-- **Diagnostic information**: Detailed troubleshooting output
-- **Recovery guidance**: Step-by-step recovery instructions
+# Setup backup and CI/CD
+python scripts/k8s-devops-automation.py --setup-backup
+python scripts/k8s-devops-automation.py --setup-cicd jenkins
+```
 
----
+### Advanced: Production-Ready Environment
+```bash
+# Production installation with full security
+python scripts/install-k8s-keeper.py --allow-root --production-only --interactive-ports
 
-## 11. Security Considerations
+# Import production secrets with templates
+python scripts/advanced-secrets-manager.py --import-folder "production-secrets"
+python scripts/advanced-secrets-manager.py --template docker-registry --record "REG_456" --name "registry-auth"
 
-### 11.1 Privilege Management
+# Setup comprehensive monitoring, security, and backup
+python scripts/k8s-devops-automation.py --setup-monitoring
+python scripts/k8s-devops-automation.py --setup-security
+python scripts/k8s-devops-automation.py --setup-backup
 
-#### Root Execution Protection
-- **Default denial**: Refuses to run as root by default
-- **Explicit override**: Requires `--allow-root` flag
-- **Privilege escalation**: Uses sudo only when necessary
+# Deploy with full production configuration
+python scripts/k8s-devops-automation.py --deploy --namespace "production"
 
-#### Destructive Operation Protection
-- **Explicit confirmation**: Requires specific confirmation phrases
-- **Operation limiting**: Restricts destructive operations to specific modes
-- **Reversibility**: Provides uninstall capabilities for all operations
+# Setup GitOps and compliance
+python scripts/k8s-devops-automation.py --setup-cicd argocd
+python scripts/advanced-secrets-manager.py --rotation-policy "30d" --namespace "production"
+python scripts/k8s-devops-automation.py --compliance-report
 
-### 11.2 Credential Management
-
-#### Keeper Token Handling
-- **Memory only**: Tokens processed in memory when possible
-- **Temporary files**: Automatic cleanup of temporary credential files
-- **Base64 encoding**: Proper encoding for Kubernetes secret storage
-
-#### Dashboard Security
-- **HTTPS only**: Dashboard exposed only via HTTPS
-- **Token authentication**: Long-lived but revocable tokens
-- **Admin privileges**: Full cluster access for development convenience
-
----
-
-## 12. Performance & Scalability
-
-### 12.1 Performance Optimizations
-
-#### Port Scanning Optimization
-- **Range limiting**: Limits scan ranges to prevent excessive delays
-- **Early termination**: Stops when sufficient alternatives found
-- **Caching**: Reuses port information within single execution
-
-#### Command Execution Optimization
-- **Selective capture**: Only captures output when needed
-- **Error suppression**: Avoids expensive error processing when not needed
-- **Parallel-safe**: Safe for concurrent execution
-
-### 12.2 Scalability Considerations
-
-#### Resource Requirements
-- **Minimal footprint**: Designed for development environments
-- **Single-node clusters**: Optimized for local development
-- **Development focus**: Not intended for production deployment
-
-#### Extensibility
-- **Stage-based architecture**: Easy to add new installation stages
-- **Configuration-driven**: Behavior controlled by configuration objects
-- **Modular design**: Individual components can be modified independently
+# Automated backup schedule
+python scripts/k8s-devops-automation.py --create-backup "production-$(date +%Y%m%d)"
+```
 
 ---
 
-## 13. Troubleshooting & Diagnostics
+## 📚 Documentation & Support
 
-### 13.1 Diagnostic Systems
+### Documentation Structure
+- **Installation Guide**: Complete setup instructions with troubleshooting
+- **API Reference**: Comprehensive API documentation for integration
+- **User Guide**: Step-by-step workflows for common operations
+- **Architecture Guide**: Technical architecture and design decisions
+- **Security Guide**: Security best practices and compliance information
+- **Troubleshooting Guide**: Common issues and resolution procedures
 
-#### Comprehensive Logging
-- **Dual logging**: Console and file logging with different detail levels
-- **Color coding**: Visual indicators for different log levels
-- **Debug information**: Detailed command execution logging
+### Support Resources
+- **Examples Directory**: Real-world usage examples and templates
+- **Configuration Templates**: Pre-configured templates for common scenarios
+- **Diagnostic Tools**: Built-in diagnostic and troubleshooting utilities
+- **Recovery Procedures**: Comprehensive recovery and disaster recovery guides
 
-#### Advanced Diagnostics
-- **Component status**: Individual component health checking
-- **Resource validation**: Kubernetes resource existence and status
-- **Network connectivity**: Port availability and service accessibility
-
-### 13.2 Common Issues & Solutions
-
-#### CRD Establishment Issues
-- **Symptoms**: CRDs exist but show "Not Established"
-- **Diagnosis**: Functional validation vs status checking
-- **Recovery**: Controller restart and functional validation
-
-#### Port Conflicts
-- **Symptoms**: Services fail to start due to port conflicts
-- **Diagnosis**: Port scanning and conflict detection
-- **Recovery**: Automatic alternative port selection
-
-#### Permission Issues
-- **Symptoms**: Docker or kubectl permission denied
-- **Diagnosis**: User group membership and sudo capabilities
-- **Recovery**: User group addition or sudo usage
+### Community & Contributions
+This suite follows a modular architecture designed for extensibility and community contributions. Each script maintains clear API boundaries and follows consistent patterns for easy customization and extension.
 
 ---
 
-## 14. Development & Maintenance
+## 📄 License & Legal
 
-### 14.1 Code Organization
-
-#### Modular Architecture
-- **Section separation**: Clear separation of functionality
-- **Class hierarchy**: Inheritance-based stage architecture
-- **Function grouping**: Related functions grouped in sections
-
-#### Documentation Standards
-- **Docstring coverage**: All public functions documented
-- **Type annotations**: Full type annotation for clarity
-- **Comment quality**: Explanatory comments for complex logic
-
-### 14.2 Testing Considerations
-
-#### Manual Testing
-- **Multiple platforms**: Tested on various Linux distributions
-- **Different scenarios**: Installation, resumption, and uninstall testing
-- **Edge cases**: Port conflicts, permission issues, network problems
-
-#### Automated Testing Potential
-- **Unit testing**: Individual function testing potential
-- **Integration testing**: End-to-end installation testing
-- **Mock environments**: Docker-based testing environments
+[Your License Information Here]
 
 ---
 
-## 15. Future Enhancements
-
-### 15.1 Potential Improvements
-
-#### Enhanced Security
-- **Credential encryption**: Encrypted credential storage
-- **Role-based access**: More granular permission management
-- **Audit logging**: Comprehensive operation auditing
-
-#### Additional Integrations
-- **CI/CD integration**: Pipeline-friendly execution modes
-- **Cloud provider support**: Support for cloud Kubernetes services
-- **Additional secret managers**: Support for other secret management systems
-
-#### User Experience
-- **Web interface**: Browser-based installation interface
-- **Progress indicators**: Visual progress reporting
-- **Configuration validation**: Pre-installation validation
-
-### 15.2 Maintenance Considerations
-
-#### Version Management
-- **Tool versions**: Regular updates to tool versions
-- **Compatibility testing**: Testing with new Kubernetes versions
-- **Dependency management**: Monitoring of external dependencies
-
-#### Documentation Maintenance
-- **Usage examples**: Regular example updates
-- **Troubleshooting guides**: Expanded troubleshooting documentation
-- **Architecture documentation**: Continued architectural documentation
-
----
-
-## Conclusion
-
-The Kubernetes + Keeper Installer represents a comprehensive solution for automated Kubernetes development environment setup with integrated secrets management. Its modular architecture, robust error handling, intelligent port management, and comprehensive diagnostics make it suitable for both novice and experienced users. The script's design prioritizes user experience while maintaining security and reliability, providing a solid foundation for Kubernetes development with Keeper Secrets Manager integration.
+*This comprehensive Kubernetes + Keeper Secrets Manager suite provides enterprise-grade DevOps automation with integrated secrets management, from initial setup through production deployment and ongoing maintenance. The modular architecture and comprehensive API make it suitable for both standalone use and integration into larger DevOps platforms.*
